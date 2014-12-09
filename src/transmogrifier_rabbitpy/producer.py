@@ -31,6 +31,9 @@ class Producer(ConditionalBlueprint):
         # Routing key
         routing_key = self.options.get('routing_key', '*')
 
+        # Fieldnames
+        fieldnames = self.options.get('fieldnames')
+
         # Connect to RabbitMQ on localhost, port 5672 as guest/guest
         with rabbitpy.Connection(amqp_uri) as conn:
 
@@ -51,7 +54,16 @@ class Producer(ConditionalBlueprint):
                 for item in self.previous:
                     if self.condition(item):
                         try:
-                            message = rabbitpy.Message(channel, item)
+                            if fieldnames:
+                                message = rabbitpy.Message(channel, dict([
+                                    (key, value) for key, value in item.items()
+                                    if key in fieldnames
+                                ]))
+                            else:
+                                message = rabbitpy.Message(channel, dict([
+                                    (key, value) for key, value in item.items()
+                                    if not key.startswith('_')
+                                ]))
                         except Exception as e:
                             raise Exception(e)
                         if confirms:
