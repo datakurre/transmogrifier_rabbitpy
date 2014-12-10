@@ -54,6 +54,9 @@ class Consumer(Blueprint):
             'auto_delete': True
         }
 
+        # Should the message be acked; False is useful during development
+        ack = to_boolean_when_looks_boolean(self.options.get('ack', 'true'))
+
         for key, value in self.options.items():
             value = to_boolean_when_looks_boolean(value)
             if key.startswith('queue_'):
@@ -87,7 +90,8 @@ class Consumer(Blueprint):
                         print(('Received a new message ({0:d}). '
                                'Processing...'.format(counter)))
                         yield(get_message_body(message))
-                        message.ack()
+                        if ack:
+                            message.ack()
                         print('Waiting for a new message...')
                 except KeyboardInterrupt:
                     print('Consumer stopped. Exiting...')
