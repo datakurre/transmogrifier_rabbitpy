@@ -1,10 +1,26 @@
 # -*- coding: utf-8 -*-
+from email.message import Message
+from zlib import compress
 from venusianconfiguration import configure
 
 from transmogrifier.blueprints import ConditionalBlueprint
 from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
 
 import rabbitpy
+
+
+def create_message(channel, item):
+    if isinstance(item, dict):
+        return rabbitpy.Message(channel, item)
+    elif isinstance(item, Message):
+        return rabbitpy.Message(
+            channel,
+            compress(item.as_string(unixfrom=False)),
+            properties=dict(
+                content_type='message/rfc822',
+                content_encoding='gzip'
+            )
+        )
 
 
 @configure.transmogrifier.blueprint.component(name='rabbitpy.producer')
@@ -25,7 +41,7 @@ class Producer(ConditionalBlueprint):
                 exchange_options[key[len('exchange_'):]] = value
 
         # Publisher confirms
-        confirms = to_boolean_when_looks_boolean(
+        publisher_confirms = to_boolean_when_looks_boolean(
             self.options.get('publisher_confirms'))
 
         # Routing key
@@ -38,7 +54,7 @@ class Producer(ConditionalBlueprint):
             with conn.channel() as channel:
 
                 # Turn on publisher confirmations
-                if confirms:
+                if publisher_confirms:
                     channel.enable_publisher_confirms()
 
                 # Declare exchange
@@ -48,15 +64,15 @@ class Producer(ConditionalBlueprint):
                     exchange.declare()
 
                 # Publish
-                for item in self.previous:
-                    if self.condition(item):
-                        try:
-                            message = rabbitpy.Message(channel, item)
-                        except Exception as e:
-                            raise Exception(e)
-                        if confirms:
-                            if not message.publish(exchange, routing_key):
-                                raise Exception('NO ROUTE')
-                        else:
-                            message.publish(exchange, routing_key)
-                    yield item
+                try:
+                    for item in self.previous:
+                        if self.condition(item):
+                            message = create_message(channel, item)
+                            if publisher_confirms:
+                                if not message.publish(exchange, routing_key):
+                                    raise Exception('NO ROUTE')
+                            else:
+                                message.publish(exchange, routing_key)
+                        yield item
+                except Exception as e:
+                    raise Exception(e)

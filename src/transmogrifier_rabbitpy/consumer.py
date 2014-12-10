@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from email import message_from_string
+from zlib import decompress
 
 from venusianconfiguration import configure
 
@@ -7,6 +9,24 @@ from transmogrifier.blueprints import Blueprint
 from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
 
 import rabbitpy
+
+
+def get_message_body(message):
+    content_type = message.properties.get('content_type')
+    content_encoding = message.properties.get('content_encoding')
+
+    if content_type == 'application/json':
+        return message.json()
+
+    elif content_type == 'message/rfc822':
+        if content_encoding == '':
+            return message_from_string(message.body)
+        elif content_encoding == 'gzip':
+            return message_from_string(decompress(message.body))
+
+    raise Exception(('Unknown content-type \'{0:s}\' '
+                     'with encoding \'{1:s}\'').format(content_type,
+                                                       content_encoding))
 
 
 @configure.transmogrifier.blueprint.component(name='rabbitpy.consumer')
@@ -66,8 +86,10 @@ class Consumer(Blueprint):
                         counter += 1
                         print(('Received a new message ({0:d}). '
                                'Processing...'.format(counter)))
-                        yield(message.json())
+                        yield(get_message_body(message))
                         message.ack()
                         print('Waiting for a new message...')
                 except KeyboardInterrupt:
                     print('Consumer stopped. Exiting...')
+                except Exception as e:
+                    raise Exception(e)
