@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+from email.generator import Generator
 from email.message import Message
+from io import BytesIO
 from zlib import compress
 from venusianconfiguration import configure
 
@@ -9,13 +11,20 @@ from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
 import rabbitpy
 
 
+def to_string(message):
+    out = BytesIO()
+    generator = Generator(out, mangle_from_=False, maxheaderlen=0)
+    generator.flatten(message)
+    return out.getvalue()
+
+
 def create_message(channel, item):
     if isinstance(item, dict):
         return rabbitpy.Message(channel, item)
     elif isinstance(item, Message):
         return rabbitpy.Message(
             channel,
-            compress(item.as_string(unixfrom=False)),
+            compress(to_string(item)),
             properties=dict(
                 content_type='message/rfc822',
                 content_encoding='gzip'
