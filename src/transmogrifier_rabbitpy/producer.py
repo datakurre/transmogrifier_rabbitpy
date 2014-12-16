@@ -9,6 +9,7 @@ from transmogrifier.blueprints import ConditionalBlueprint
 from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
 
 import rabbitpy
+import traceback 
 
 
 def to_string(message):
@@ -84,4 +85,4 @@ class Producer(ConditionalBlueprint):
                                 message.publish(exchange, routing_key)
                         yield item
                 except Exception as e:
-                    raise Exception(e)
+                    raise Exception(traceback.format_exc())
