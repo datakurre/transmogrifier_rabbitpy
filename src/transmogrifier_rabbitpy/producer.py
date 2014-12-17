@@ -1,15 +1,21 @@
 # -*- coding: utf-8 -*-
 from email.generator import Generator
 from email.message import Message
-from io import BytesIO
 from zlib import compress
+import traceback
+
 from venusianconfiguration import configure
+import rabbitpy
 
 from transmogrifier.blueprints import ConditionalBlueprint
 from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
 
-import rabbitpy
-import traceback 
+
+try:
+    from StringIO import StringIO as BytesIO
+    # BytesIO is not safe with Python < 3, because Message may contain unicode
+except ImportError:
+    from io import BytesIO
 
 
 def to_string(message):
@@ -50,6 +56,17 @@ class Producer(ConditionalBlueprint):
             if key.startswith('exchange_'):
                 exchange_options[key[len('exchange_'):]] = value
 
+        # Queue
+        queue = self.options.get('queue', '')
+        queue_options = {
+            'auto_declare': True,
+            'auto_delete': True
+        }
+        for key, value in self.options.items():
+            value = to_boolean_when_looks_boolean(value)
+            if key.startswith('queue_'):
+                queue_options[key[len('queue_'):]] = value
+
         # Publisher confirms
         publisher_confirms = to_boolean_when_looks_boolean(
             self.options.get('publisher_confirms'))
@@ -73,6 +90,14 @@ class Producer(ConditionalBlueprint):
                     exchange = rabbitpy.Exchange(channel, **exchange_options)
                     exchange.declare()
 
+                # Declare queue
+                if queue:
+                    queue_declare = queue_options.pop('auto_declare', True)
+                    queue = rabbitpy.Queue(channel, queue, **queue_options)
+                    if queue_declare:
+                        queue.declare()
+                    queue.bind(exchange, routing_key)
+
                 # Publish
                 try:
                     for item in self.previous:
@@ -84,5 +109,5 @@ class Producer(ConditionalBlueprint):
                             else:
                                 message.publish(exchange, routing_key)
                         yield item
-                except Exception as e:
+                except Exception:
                     raise Exception(traceback.format_exc())
