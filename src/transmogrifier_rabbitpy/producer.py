@@ -42,37 +42,39 @@ def create_message(channel, item):
 @configure.transmogrifier.blueprint.component(name='rabbitpy.producer')
 class Producer(ConditionalBlueprint):
     def __iter__(self):
+        options = dict([(key.replace('-', '_'), value)
+                        for key, value in self.options.items()])
         # URI
-        amqp_uri = self.options.get(
+        amqp_uri = options.get(
             'amqp_uri',
             'amqp://guest:guest@localhost:5672/%2f'
         )
 
         # Exchange
-        exchange = self.options.get('exchange', 'amq.topic')
+        exchange = options.get('exchange', 'amq.topic')
         exchange_options = {}
-        for key, value in self.options.items():
+        for key, value in options.items():
             value = to_boolean_when_looks_boolean(value)
             if key.startswith('exchange_'):
                 exchange_options[key[len('exchange_'):]] = value
 
         # Queue
-        queue = self.options.get('queue', '')
+        queue = options.get('queue', '')
         queue_options = {
             'auto_declare': True,
             'auto_delete': True
         }
-        for key, value in self.options.items():
+        for key, value in options.items():
             value = to_boolean_when_looks_boolean(value)
             if key.startswith('queue_'):
                 queue_options[key[len('queue_'):]] = value
 
         # Publisher confirms
         publisher_confirms = to_boolean_when_looks_boolean(
-            self.options.get('publisher_confirms'))
+            options.get('publisher_confirms'))
 
         # Routing key
-        routing_key = self.options.get('routing_key', '*')
+        routing_key = options.get('routing_key', '*')
 
         # Connect to RabbitMQ on localhost, port 5672 as guest/guest
         with rabbitpy.Connection(amqp_uri) as conn:

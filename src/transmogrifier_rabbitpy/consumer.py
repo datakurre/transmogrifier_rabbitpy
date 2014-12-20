@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from email import message_from_string
+import traceback
 from zlib import decompress
 
 from venusianconfiguration import configure
@@ -35,16 +36,19 @@ class Consumer(Blueprint):
         for item in self.previous:
             yield item
 
-        amqp_uri = self.options.get(
+        options = dict([(key.replace('-', '_'), value)
+                        for key, value in self.options.items()])
+
+        amqp_uri = options.get(
             'amqp_uri',
             'amqp://guest:guest@localhost:5672/%2f'
         )
-        queue = self.options.get('queue', '')
-        exchange = self.options.get('exchange', 'amq.topic')
-        routing_key = self.options.get('routing_key', '*')
+        queue = options.get('queue', '')
+        exchange = options.get('exchange', 'amq.topic')
+        routing_key = options.get('routing_key', '*')
 
         exchange_options = {}
-        for key, value in self.options.items():
+        for key, value in options.items():
             value = to_boolean_when_looks_boolean(value)
             if key.startswith('exchange_'):
                 exchange_options[key[len('exchange_'):]] = value
@@ -55,9 +59,9 @@ class Consumer(Blueprint):
         }
 
         # Should the message be acked; False is useful during development
-        ack = to_boolean_when_looks_boolean(self.options.get('ack', 'true'))
+        ack = to_boolean_when_looks_boolean(options.get('ack', 'true'))
 
-        for key, value in self.options.items():
+        for key, value in options.items():
             value = to_boolean_when_looks_boolean(value)
             if key.startswith('queue_'):
                 queue_options[key[len('queue_'):]] = value
@@ -95,5 +99,5 @@ class Consumer(Blueprint):
                         print('Waiting for a new message...')
                 except KeyboardInterrupt:
                     print('Consumer stopped. Exiting...')
-                except Exception as e:
-                    raise Exception(e)
+                except Exception:
+                    raise Exception(traceback.format_exc())
