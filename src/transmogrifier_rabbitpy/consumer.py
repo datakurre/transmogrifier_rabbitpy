@@ -5,16 +5,19 @@ import traceback
 from zlib import decompress
 
 from venusianconfiguration import configure
-
 from transmogrifier.blueprints import Blueprint
 from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
-
 import rabbitpy
+
+import msgpack
 
 
 def get_message_body(message):
     content_type = message.properties.get('content_type')
     content_encoding = message.properties.get('content_encoding')
+
+    if content_type == 'application/x-msgpack':
+        return msgpack.unpackb(message.body)
 
     if content_type == 'application/json':
         return message.json()

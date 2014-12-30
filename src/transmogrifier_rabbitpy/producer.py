@@ -6,9 +6,10 @@ import traceback
 
 from venusianconfiguration import configure
 import rabbitpy
-
 from transmogrifier.blueprints import ConditionalBlueprint
 from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
+
+import msgpack
 
 
 try:
@@ -25,10 +26,8 @@ def to_string(message):
     return out.getvalue()
 
 
-def create_message(channel, item):
-    if isinstance(item, dict):
-        return rabbitpy.Message(channel, item)
-    elif isinstance(item, Message):
+def create_message(channel, item, default_serializer='msgpack'):
+    if isinstance(item, Message):
         return rabbitpy.Message(
             channel,
             compress(to_string(item)),
@@ -37,6 +36,12 @@ def create_message(channel, item):
                 content_encoding='gzip'
             )
         )
+    elif default_serializer == 'msgpack':
+        return rabbitpy.Message(channel, msgpack.packb(item),
+                                properties={'content_type':
+                                            'application/x-msgpack'})
+    else:
+        return rabbitpy.Message(channel, item)
 
 
 @configure.transmogrifier.blueprint.component(name='rabbitpy.producer')
@@ -44,6 +49,12 @@ class Producer(ConditionalBlueprint):
     def __iter__(self):
         options = dict([(key.replace('-', '_'), value)
                         for key, value in self.options.items()])
+        # Key
+        key = options.get('key')
+
+        # Serializer
+        default_serializer = options.get('serializer', 'json')
+
         # URI
         amqp_uri = options.get(
             'amqp_uri',
@@ -104,7 +115,12 @@ class Producer(ConditionalBlueprint):
                 try:
                     for item in self.previous:
                         if self.condition(item):
-                            message = create_message(channel, item)
+                            if key is None:
+                                message = create_message(channel, item,
+                                                         default_serializer)
+                            else:
+                                message = create_message(channel, item['key'],
+                                                         default_serializer)
                             if publisher_confirms:
                                 if not message.publish(exchange, routing_key):
                                     raise Exception('NO ROUTE')

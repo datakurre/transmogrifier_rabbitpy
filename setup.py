@@ -26,6 +26,7 @@ setup(
         'venusianconfiguration',
         'transmogrifier',
         'rabbitpy',
+        'msgpack-python',
     ],
     extras_require={'test': [
     ]},
