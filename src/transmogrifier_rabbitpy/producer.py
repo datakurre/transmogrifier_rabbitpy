@@ -49,9 +49,6 @@ class Producer(ConditionalBlueprint):
     def __iter__(self):
         options = dict([(key.replace('-', '_'), value)
                         for key, value in self.options.items()])
-        # Key
-        key = options.get('key')
-
         # Serializer
         default_serializer = options.get('serializer', 'json')
 
@@ -86,6 +83,9 @@ class Producer(ConditionalBlueprint):
 
         # Routing key
         routing_key = options.get('routing_key', '*')
+
+        # Item key
+        key = options.get('key')
 
         # Connect to RabbitMQ on localhost, port 5672 as guest/guest
         with rabbitpy.Connection(amqp_uri) as conn:
