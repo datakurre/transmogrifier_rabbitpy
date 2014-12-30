@@ -119,7 +119,7 @@ class Producer(ConditionalBlueprint):
                                 message = create_message(channel, item,
                                                          default_serializer)
                             else:
-                                message = create_message(channel, item['key'],
+                                message = create_message(channel, item[key],
                                                          default_serializer)
                             if publisher_confirms:
                                 if not message.publish(exchange, routing_key):
