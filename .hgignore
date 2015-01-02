@@ -3,6 +3,7 @@ syntax: glob
 *.egg-info
 *.mo
 *.pyc
+*.orig
 *~
 .idea
 .installed.cfg
