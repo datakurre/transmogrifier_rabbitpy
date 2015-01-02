@@ -10,6 +10,7 @@ from transmogrifier.blueprints import ConditionalBlueprint
 from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
 
 import msgpack
+import cPickle
 
 
 try:
@@ -36,6 +37,10 @@ def create_message(channel, item, default_serializer='msgpack'):
                 content_encoding='gzip'
             )
         )
+    elif default_serializer == 'pickle':
+        return rabbitpy.Message(channel, cPickle.dumps(item),
+                                properties={'content_type':
+                                            'application/octet-stream'})
     elif default_serializer == 'msgpack':
         return rabbitpy.Message(channel, msgpack.packb(item),
                                 properties={'content_type':

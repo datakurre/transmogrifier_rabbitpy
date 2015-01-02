@@ -3,6 +3,7 @@ from __future__ import print_function
 from email import message_from_string
 import traceback
 from zlib import decompress
+import cPickle
 
 from venusianconfiguration import configure
 from transmogrifier.blueprints import Blueprint
@@ -16,10 +17,13 @@ def get_message_body(message):
     content_type = message.properties.get('content_type')
     content_encoding = message.properties.get('content_encoding')
 
-    if content_type == 'application/x-msgpack':
+    if content_type == 'application/octet-stream':
+        return cPickle.loads(message.body)
+
+    elif content_type == 'application/x-msgpack':
         return msgpack.unpackb(message.body)
 
-    if content_type == 'application/json':
+    elif content_type == 'application/json':
         return message.json()
 
     elif content_type == 'message/rfc822':
