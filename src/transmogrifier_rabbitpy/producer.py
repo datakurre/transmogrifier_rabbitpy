@@ -61,10 +61,10 @@ class Producer(ConditionalBlueprint):
         # Exchange
         exchange = options.get('exchange', 'amq.topic')
         exchange_options = {}
-        for key, value in options.items():
-            value = to_boolean_when_looks_boolean(value)
-            if key.startswith('exchange_'):
-                exchange_options[key[len('exchange_'):]] = value
+        for k, v in options.items():
+            v = to_boolean_when_looks_boolean(v)
+            if k.startswith('exchange_'):
+                exchange_options[k[len('exchange_'):]] = v
 
         # Queue
         queue = options.get('queue', '')
@@ -72,10 +72,10 @@ class Producer(ConditionalBlueprint):
             'auto_declare': True,
             'auto_delete': True
         }
-        for key, value in options.items():
-            value = to_boolean_when_looks_boolean(value)
-            if key.startswith('queue_'):
-                queue_options[key[len('queue_'):]] = value
+        for k, v in options.items():
+            v = to_boolean_when_looks_boolean(v)
+            if k.startswith('queue_'):
+                queue_options[k[len('queue_'):]] = v
 
         # Publisher confirms
         publisher_confirms = to_boolean_when_looks_boolean(
@@ -86,6 +86,9 @@ class Producer(ConditionalBlueprint):
 
         # Item key
         key = options.get('key')
+
+        # Or multiple keys
+        keys = options.get('keys')
 
         # Connect to RabbitMQ on localhost, port 5672 as guest/guest
         with rabbitpy.Connection(amqp_uri) as conn:
@@ -115,11 +118,15 @@ class Producer(ConditionalBlueprint):
                 try:
                     for item in self.previous:
                         if self.condition(item):
-                            if key is None:
-                                message = create_message(channel, item,
-                                                         default_serializer)
-                            else:
+                            if key is not None:
                                 message = create_message(channel, item[key],
+                                                         default_serializer)
+                            elif keys is not None:
+                                message = create_message(channel, dict(
+                                    [(k, v) for k, v in item.items()
+                                     if k in keys]), default_serializer)
+                            else:
+                                message = create_message(channel, item,
                                                          default_serializer)
                             if publisher_confirms:
                                 if not message.publish(exchange, routing_key):
