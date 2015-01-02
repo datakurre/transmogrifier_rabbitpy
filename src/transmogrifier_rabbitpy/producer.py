@@ -40,7 +40,7 @@ def create_message(channel, item, default_serializer='msgpack'):
     elif default_serializer == 'pickle':
         return rabbitpy.Message(channel, cPickle.dumps(item),
                                 properties={'content_type':
-                                            'application/octet-stream'})
+                                            'application/x-pickle'})
     elif default_serializer == 'msgpack':
         return rabbitpy.Message(channel, msgpack.packb(item),
                                 properties={'content_type':

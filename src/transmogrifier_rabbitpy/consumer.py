@@ -17,7 +17,7 @@ def get_message_body(message):
     content_type = message.properties.get('content_type')
     content_encoding = message.properties.get('content_encoding')
 
-    if content_type == 'application/octet-stream':
+    if content_type == 'application/x-pickle':
         return cPickle.loads(message.body)
 
     elif content_type == 'application/x-msgpack':
