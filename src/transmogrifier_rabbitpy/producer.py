@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from email.generator import Generator
 from email.message import Message
+from tarfile import TarFile
 from zlib import compress
 import traceback
 
@@ -37,14 +38,32 @@ def create_message(channel, item, default_serializer='msgpack'):
                 content_encoding='gzip'
             )
         )
-    elif default_serializer == 'pickle':
-        return rabbitpy.Message(channel, cPickle.dumps(item),
-                                properties={'content_type':
-                                            'application/x-pickle'})
     elif default_serializer == 'msgpack':
-        return rabbitpy.Message(channel, msgpack.packb(item),
-                                properties={'content_type':
-                                            'application/x-msgpack'})
+        return rabbitpy.Message(
+            channel,
+            msgpack.packb(item),
+            properties=dict(
+                content_type='application/x-msgpack',
+                )
+        )
+    elif default_serializer == 'tarball':
+        assert isinstance(item, TarFile), 'Item was not a TarFile'
+        return rabbitpy.Message(
+            channel,
+            item,
+            properties=dict(
+                content_type='application/x-tar',
+                )
+        )
+    elif default_serializer == 'pickle':
+        return rabbitpy.Message(
+            channel,
+            compress(cPickle.dumps(item)),
+            properties=dict(
+                content_type='application/x-pickle',
+                content_encoding='gzip'
+            )
+        )
     else:
         return rabbitpy.Message(channel, item)
 

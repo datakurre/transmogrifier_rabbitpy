@@ -13,24 +13,27 @@ import rabbitpy
 import msgpack
 
 
-def get_message_body(message):
+def get_item(message):
     content_type = message.properties.get('content_type')
     content_encoding = message.properties.get('content_encoding')
 
-    if content_type == 'application/x-pickle':
-        return cPickle.loads(message.body)
+    if content_type == 'application/json':
+        return message.json()
 
     elif content_type == 'application/x-msgpack':
         return msgpack.unpackb(message.body)
 
-    elif content_type == 'application/json':
-        return message.json()
+    elif content_type == 'application/x-pickle':
+        if content_encoding == '':
+            return cPickle.loads(message.body)
+        elif content_encoding == 'gzip':
+            return cPickle.loads(decompress(message.body))
 
     elif content_type == 'message/rfc822':
         if content_encoding == '':
-            return message_from_string(message.body)
+            return {'_rfc822': message_from_string(message.body)}
         elif content_encoding == 'gzip':
-            return message_from_string(decompress(message.body))
+            return {'_rfc822': message_from_string(decompress(message.body))}
 
     raise Exception(('Unknown content-type \'{0:s}\' '
                      'with encoding \'{1:s}\'').format(content_type,
@@ -100,7 +103,7 @@ class Consumer(Blueprint):
                         counter += 1
                         print(('Received a new message ({0:d}). '
                                'Processing...'.format(counter)))
-                        yield(get_message_body(message))
+                        yield(get_item(message))
                         if ack:
                             message.ack()
                         print('Waiting for a new message...')
