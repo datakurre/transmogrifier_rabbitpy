@@ -108,7 +108,7 @@ class Consumer(Blueprint):
                         if key:
                             yield {key: get_item(message)}
                         else:
-                            yield message
+                            yield get_item(message)
 
                         if ack:
                             message.ack()
