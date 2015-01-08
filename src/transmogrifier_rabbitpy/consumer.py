@@ -31,9 +31,9 @@ def get_item(message):
 
     elif content_type == 'message/rfc822':
         if content_encoding == '':
-            return {'_rfc822': message_from_string(message.body)}
+            return message_from_string(message.body)
         elif content_encoding == 'gzip':
-            return {'_rfc822': message_from_string(decompress(message.body))}
+            return message_from_string(decompress(message.body))
 
     raise Exception(('Unknown content-type \'{0:s}\' '
                      'with encoding \'{1:s}\'').format(content_type,
@@ -46,8 +46,8 @@ class Consumer(Blueprint):
         for item in self.previous:
             yield item
 
-        options = dict([(key.replace('-', '_'), value)
-                        for key, value in self.options.items()])
+        options = dict([(k.replace('-', '_'), v)
+                        for k, v in self.options.items()])
 
         amqp_uri = options.get(
             'amqp_uri',
@@ -58,10 +58,10 @@ class Consumer(Blueprint):
         routing_key = options.get('routing_key', '*')
 
         exchange_options = {}
-        for key, value in options.items():
-            value = to_boolean_when_looks_boolean(value)
-            if key.startswith('exchange_'):
-                exchange_options[key[len('exchange_'):]] = value
+        for k, v in options.items():
+            v = to_boolean_when_looks_boolean(v)
+            if k.startswith('exchange_'):
+                exchange_options[k[len('exchange_'):]] = v
 
         queue_options = {
             'auto_declare': True,
@@ -71,10 +71,12 @@ class Consumer(Blueprint):
         # Should the message be acked; False is useful during development
         ack = to_boolean_when_looks_boolean(options.get('ack', 'true'))
 
-        for key, value in options.items():
-            value = to_boolean_when_looks_boolean(value)
-            if key.startswith('queue_'):
-                queue_options[key[len('queue_'):]] = value
+        for k, v in options.items():
+            v = to_boolean_when_looks_boolean(v)
+            if k.startswith('queue_'):
+                queue_options[k[len('queue_'):]] = v
+
+        key = self.options.get('key')
 
         # Connect to RabbitMQ on localhost, port 5672 as guest/guest
         with rabbitpy.Connection(amqp_uri) as conn:
@@ -103,7 +105,11 @@ class Consumer(Blueprint):
                         counter += 1
                         print(('Received a new message ({0:d}). '
                                'Processing...'.format(counter)))
-                        yield(get_item(message))
+                        if key:
+                            yield {key: get_item(message)}
+                        else:
+                            yield message
+
                         if ack:
                             message.ack()
                         print('Waiting for a new message...')

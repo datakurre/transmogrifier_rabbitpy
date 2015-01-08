@@ -47,7 +47,6 @@ def create_message(channel, item, default_serializer='msgpack'):
                 )
         )
     elif default_serializer == 'tarball':
-        assert isinstance(item, TarFile), 'Item was not a TarFile'
         return rabbitpy.Message(
             channel,
             item,
