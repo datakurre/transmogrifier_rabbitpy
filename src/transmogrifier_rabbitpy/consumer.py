@@ -84,6 +84,8 @@ class Consumer(Blueprint):
             # Open the channel to communicate with RabbitMQ
             with conn.channel() as channel:
 
+                # channel.prefetch_count(1)
+
                 exchange_declare = exchange_options.pop('auto_declare', False)
                 if exchange_declare:
                     exchange = rabbitpy.Exchange(channel, **exchange_options)
@@ -96,7 +98,9 @@ class Consumer(Blueprint):
 
                 queue.bind(exchange, routing_key)
 
-                # Exit on CTRL-C
+                limit = len(queue)
+
+                # Exit on CTRL-C or limit reached
                 counter = 0
                 try:
                     # Consume the message
@@ -112,6 +116,8 @@ class Consumer(Blueprint):
 
                         if ack:
                             message.ack()
+                        if limit > 0 and limit <= counter:
+                            break
                         print('Waiting for a new message...')
                 except KeyboardInterrupt:
                     print('Consumer stopped. Exiting...')
