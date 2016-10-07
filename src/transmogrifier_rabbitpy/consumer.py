@@ -116,9 +116,10 @@ class Consumer(Blueprint):
 
                         if ack:
                             message.ack()
-                        if limit > 0 and limit <= counter:
+                        if 0 < limit <= counter:
                             break
-                        print('Waiting for a new message...')
+                        if not limit:
+                            print('Waiting for a new message...')
                 except KeyboardInterrupt:
                     print('Consumer stopped. Exiting...')
                 except Exception:
