@@ -84,7 +84,7 @@ class Consumer(Blueprint):
             # Open the channel to communicate with RabbitMQ
             with conn.channel() as channel:
 
-                # channel.prefetch_count(1)
+                channel.prefetch_count(1)
 
                 exchange_declare = exchange_options.pop('auto_declare', False)
                 if exchange_declare:
