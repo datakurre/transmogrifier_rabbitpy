@@ -11,6 +11,7 @@ from transmogrifier_rabbitpy.utils import to_boolean_when_looks_boolean
 import rabbitpy
 
 import msgpack
+import time
 
 
 def get_item(message):
@@ -79,47 +80,59 @@ class Consumer(Blueprint):
         key = self.options.get('key')
 
         # Connect to RabbitMQ on localhost, port 5672 as guest/guest
-        with rabbitpy.Connection(amqp_uri) as conn:
+        with rabbitpy.Connection(amqp_uri) as conn1, \
+             rabbitpy.Connection(amqp_uri) as conn2:
 
             # Open the channel to communicate with RabbitMQ
-            with conn.channel() as channel:
+            with conn1.channel() as channel1, \
+                 conn2.channel() as channel2:
 
-                channel.prefetch_count(1)
+                if ack:
+                    channel1.prefetch_count(1)
 
                 exchange_declare = exchange_options.pop('auto_declare', False)
                 if exchange_declare:
-                    exchange = rabbitpy.Exchange(channel, **exchange_options)
+                    exchange = rabbitpy.Exchange(channel1, **exchange_options)
                     exchange.declare()
 
                 queue_declare = queue_options.pop('auto_declare', True)
-                queue = rabbitpy.Queue(channel, queue, **queue_options)
+                queue1 = rabbitpy.Queue(channel1, queue, **queue_options)
+                queue2 = rabbitpy.Queue(channel2, queue, **queue_options)
                 if queue_declare:
-                    queue.declare()
+                    queue1.declare()
 
-                queue.bind(exchange, routing_key)
+                queue1.bind(exchange, routing_key)
 
-                limit = len(queue)
+                seen = {}
 
-                # Exit on CTRL-C or limit reached
+                # Exit on CTRL-C or queue1 empty for 30 sec
                 counter = 0
                 try:
                     # Consume the message
                     print('Waiting for a new message...')
-                    for message in queue:
-                        counter += 1
+                    for message in queue1:
+                        counter = counter + 1
                         print(('Received a new message ({0:d}). '
                                'Processing...'.format(counter)))
+
                         if key:
                             yield {key: get_item(message)}
                         else:
                             yield get_item(message)
-
                         if ack:
                             message.ack()
-                        if 0 < limit <= counter:
-                            break
-                        if not limit:
+
+                        if not(len(queue2)):
                             print('Waiting for a new message...')
+
+                        # Break when no new messages in 30 seconds
+                        grace = 30
+                        while(grace > 0 and not len(queue2)):
+                            grace = grace - 1
+                            time.sleep(1)
+                        if grace < 1:
+                            break
+
                 except KeyboardInterrupt:
                     print('Consumer stopped. Exiting...')
                 except Exception:
