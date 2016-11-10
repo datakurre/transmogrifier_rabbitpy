@@ -111,6 +111,7 @@ class Consumer(Blueprint):
                     # Consume the message
                     print('Waiting for a new message...')
                     for message in queue1:
+                        length = len(queue2)
                         counter = counter + 1
                         print(('Received a new message ({0:d}). '
                                'Processing...'.format(counter)))
@@ -122,12 +123,12 @@ class Consumer(Blueprint):
                         if ack:
                             message.ack()
 
-                        if not(len(queue2)):
+                        if not length:
                             print('Waiting for a new message...')
 
                         # Break when no new messages in 30 seconds
                         grace = 30
-                        while(grace > 0 and not len(queue2)):
+                        while(grace > 0 and not length):
                             grace = grace - 1
                             time.sleep(1)
                         if grace < 1:
