@@ -103,18 +103,21 @@ class Consumer(Blueprint):
 
                 queue1.bind(exchange, routing_key)
 
-                seen = {}
-
                 # Exit on CTRL-C or queue1 empty for 30 sec
                 counter = 0
+                length = len(queue1)
                 try:
                     # Consume the message
                     print('Waiting for a new message...')
                     for message in queue1:
-                        length = len(queue2)
-                        counter = counter + 1
+                        counter += 1
                         print(('Received a new message ({0:d}). '
                                'Processing...'.format(counter)))
+
+                        if ack:
+                            length = len(queue2)
+                        else:
+                            length -= 1
 
                         if key:
                             yield {key: get_item(message)}
@@ -128,8 +131,8 @@ class Consumer(Blueprint):
 
                         # Break when no new messages in 30 seconds
                         grace = 30
-                        while(grace > 0 and not length):
-                            grace = grace - 1
+                        while grace > 0 and not length:
+                            grace -= 1
                             time.sleep(1)
                         if grace < 1:
                             break
