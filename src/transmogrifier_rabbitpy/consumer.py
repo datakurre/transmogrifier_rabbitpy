@@ -132,7 +132,7 @@ class Consumer(Blueprint):
                         # Break when no new messages in 30 seconds
                         if ack:
                             grace = 30
-                            while grace > 0 and not len(queue2):
+                            while grace > 0 and not (length or len(queue2)):
                                 grace -= 1
                                 time.sleep(1)
                             if grace < 1:
