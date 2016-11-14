@@ -126,16 +126,17 @@ class Consumer(Blueprint):
                         if ack:
                             message.ack()
 
-                        if not length:
+                        if ack and not length:
                             print('Waiting for a new message...')
 
                         # Break when no new messages in 30 seconds
-                        grace = 30
-                        while grace > 0 and not length:
-                            grace -= 1
-                            time.sleep(1)
-                        if grace < 1:
-                            break
+                        if ack:
+                            grace = 30
+                            while grace > 0 and not len(queue2):
+                                grace -= 1
+                                time.sleep(1)
+                            if grace < 1:
+                                break
 
                 except KeyboardInterrupt:
                     print('Consumer stopped. Exiting...')
